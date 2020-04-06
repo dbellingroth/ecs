@@ -2,11 +2,11 @@ import { ECSEntity } from "./entities";
 import { ECSSystem } from "./systems";
 import { ECSEvent } from "./events";
 
-type ECSEngineOptions<DEF extends ECSEngineTypeDefinitions> = {
+type ECSEngineOptions<DEF extends ECSDefinitions> = {
     systems: ECSSystem<DEF>[]
 }
 
-export interface ECSEngineTypeDefinitions {
+export interface ECSDefinitions {
     components: {
         [key: string]: any
     },
@@ -15,22 +15,37 @@ export interface ECSEngineTypeDefinitions {
     }
 }
 
-export default class ECSEngine<DEF extends ECSEngineTypeDefinitions> {
+interface ECSBuiltInDefinitions<DEF extends ECSDefinitions> extends ECSDefinitions {
+    components: {
+
+    },
+    events: {
+        ENTITY_CREATED: ECSEntity<ECSMergedDefinitions<DEF>>,
+        ENTITY_REMOVED: ECSEntity<ECSMergedDefinitions<DEF>>
+    }
+}
+
+export type ECSMergedDefinitions<DEF extends ECSDefinitions> = {
+    components: ECSBuiltInDefinitions<DEF>['components'] & DEF['components'],
+    events: ECSBuiltInDefinitions<DEF>['events'] & DEF['events']
+}
+
+export default class ECSEngine<DEF extends ECSDefinitions> {
 
     private systems: ECSSystem<DEF>[]
     public entities: ECSEntity<DEF>[]
     private entityCounter = 0
 
-    constructor(options: ECSEngineOptions<DEF>) {
+    constructor(options: ECSEngineOptions<ECSMergedDefinitions<DEF>>) {
         this.systems = options.systems
         this.entities = []
     }
 
-    async dispatchEvent<E extends keyof DEF['events']>(event: ECSEvent<DEF, E>): Promise<void> {
+    async dispatchEvent<E extends keyof ECSMergedDefinitions<DEF>['events']>(event: ECSEvent<DEF, E>): Promise<void> {
         await Promise.all(
             this.systems.map(system => {
-                if (event.type in system.handlers) {
-                    return system.handlers[event.type](event, this)
+                if (event.type in system.eventHandlers) {
+                    return (system.eventHandlers[event.type].bind(system))(event, this)
                 }
             })
         )
@@ -38,10 +53,12 @@ export default class ECSEngine<DEF extends ECSEngineTypeDefinitions> {
 
     createEntity(data: Omit<ECSEntity<DEF>, 'id'>): ECSEntity<DEF> {
         const id = this.entityCounter++;
-        return {
+        const entity = {
             id,
             ...data
         }
+        this.entities.push(entity)
+        return entity
     }
 
     removeEntity(id: number): ECSEntity<DEF> | null {

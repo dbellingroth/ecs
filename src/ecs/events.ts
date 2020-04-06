@@ -1,6 +1,6 @@
-import { ECSEngineTypeDefinitions } from "./ECSEngine";
+import { ECSDefinitions, ECSMergedDefinitions } from "./ECSEngine";
 
-export interface ECSEvent<DEF extends ECSEngineTypeDefinitions, K extends keyof DEF['events']> {
+export interface ECSEvent<DEF extends ECSDefinitions, K extends keyof ECSMergedDefinitions<DEF>['events']> {
     type: K,
-    data: DEF['events'][K]
+    data: ECSMergedDefinitions<DEF>['events'][K]
 }

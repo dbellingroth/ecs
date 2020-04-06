@@ -1,8 +1,8 @@
-import { ECSEngineTypeDefinitions } from "./ECSEngine";
+import { ECSDefinitions, ECSMergedDefinitions } from "./ECSEngine";
 
-export interface ECSEntity<DEF extends ECSEngineTypeDefinitions> {
+export interface ECSEntity<DEF extends ECSDefinitions> {
     id: number,
     components: {
-        [K in keyof DEF['components']]?: DEF['components'][K]
+        [K in keyof ECSMergedDefinitions<DEF>['components']]?: ECSMergedDefinitions<DEF>['components'][K]
     }
 }
